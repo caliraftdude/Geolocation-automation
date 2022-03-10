@@ -304,7 +304,7 @@ for rpm in rpmlist:
     print(r)
 
 ###############################################################################
-# Installing the geolocation database update
+# Verifying the geolocation database update
 #   Note: 12.1.0 > geoip files are in /shared/GeoIP/v2/
 #         < 12.1.0 geoip files are in /shared/GeoIP/
 #   if upgrade from < 12.1.0 to > 12.1.0, on first update - files will be in /shared/GeoIP/v2/
@@ -325,5 +325,36 @@ for db in geodb:
 
     r = sendRequest(url, session, data)
     print(r)
+
+###############################################################################
+# clean up the temp files
+# Note - this will leave the README.txt file, but its small and inconsequential 
+###############################################################################
+
+###############################################################################
+#   clean up .rpm files
+###############################################################################
+for rpm in rpmlist:
+    insert = "-c \'rm -f {0}/{1}\'".format(obscurePath, rpm)
+    insert = insert.encode('UTF8')
+    data = b'{"command": "run", "utilCmdArgs": "' + insert + b'"}'
+    
+    r = sendRequest(url, session, data)
+    print(r)
+
+###############################################################################
+#   clean up zip and md5 files
+###############################################################################
+data = b'{"command": "run", "utilCmdArgs": "-c \'rm -f /tmp/ip-geolocation-v2-2.0.0-20220228.573.0.zip\'"}'
+r = sendRequest(url, session, data)
+
+data = b'{"command": "run", "utilCmdArgs": "-c \'rm -f /tmp/ip-geolocation-v2-2.0.0-20220228.573.0.zip.md5\'"}'
+r = sendRequest(url, session, data)
+
+###############################################################################
+#   Optional:  clean up Geoip_backup directory
+###############################################################################
+data = b'{"command": "run", "utilCmdArgs": "-c \'rm -rf /shared/GeoIP_backup\'"}'
+r = sendRequest(url, session, data)
 
 print("")
