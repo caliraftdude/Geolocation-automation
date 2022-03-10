@@ -116,8 +116,19 @@ No installation necessary
 
 <!-- USAGE EXAMPLES -->
 ## Usage
+The script will:
+* Gets auth token
+* Verifies the token
+* Backs up the existing database
+* Uploads the md5 and zip file
+* Checks the md5 sum
+* Unzips the md5
+* Walks through each rpm and installs it
+* Verifies each .dat link directly
+* Cleans up the rpm files
+* Cleans up the .zip and .md5 file
+* Deletes the backup directory
 
-TBC
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
