@@ -46,13 +46,7 @@ class InvalidURL(Exception):
     def __init__(self, message, errors):
         super().__init__(message)
         self.errors = errors
-""" 
-class SendRequestFailure(Exception):
-    def __init__(self, message, response, status_code):
-        super().__init__(message)
-        self.response = response
-        self.status_code = status_code
- """
+
 class notImplemented(Exception):
     def __init__(self, message):
         super().__init__(message)
