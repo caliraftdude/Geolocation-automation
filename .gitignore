@@ -154,3 +154,4 @@ cython_debug/
 *.zip
 *.md5
 notes.py
+*.backup
