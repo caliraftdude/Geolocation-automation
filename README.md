@@ -25,7 +25,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+    <img src="https://www.f5.com/content/dam/f5/f5-logo.svg" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Geolocation Database Automation for F5</h3>
