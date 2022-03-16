@@ -195,7 +195,7 @@ def getAuthToken(uri=None, username='admin', password='admin'):
 
         # Get authentication token
         if (response:= sendRequest(url, method=Method.POST, session=session, data=json.dumps(data)) ) is None:
-            print("Error attempting to get access token.  Exiting.")
+            print("Error attempting to get access token.")
             return None
         
         # Save token and double check its good
@@ -204,7 +204,7 @@ def getAuthToken(uri=None, username='admin', password='admin'):
         session.headers.update({'X-F5-Auth-Token' : token})
 
         if (response := sendRequest(url, Method.GET, session) ) is None:
-            print("Error attempting to validate access token {1}.  Exiting.".format(token))
+            print("Error attempting to validate access token {1}.".format(token))
             return None
 
         return token
@@ -458,23 +458,87 @@ def compareVersions(start, end):
         return 1
 
 ###############################################################################
+# validateFile()
+#
+# arguments:
+#   path    argument 1 from sys.argv
+#   file    file to check
+# returns:
+#   corrected file with full path
+# raises:
+#   FileNotFoundError if file doesn't exist
+###############################################################################
+def validateFile(path, file):
+    assert(path!= None)
+    assert(file!=None)
+
+    cwd = os.path.dirname(os.path.realpath(path))
+
+    # Verify the zip exists, if its in the same directory, clean up the path
+    if( not os.path.exists(file) ):
+        raise FileNotFoundError("Unable to find file {0}".format(file))
+    else:
+        # If cwd and file is in same location, just use the basename for the file
+        if (cwd == os.path.dirname(os.path.realpath(file)) ):
+            retval = os.path.basename(file)
+        # otherwise use the full path (and resolve links) to the file
+        else:
+            retval = os.path.realpath(file)
+        
+    return retval
+
+###############################################################################
+# printUsage()
+#
+# simple routine to print the usage information
+###############################################################################
+def printUsage():
+    print("Usage: geolocation-update.py <hostname/ip> <credentials> <zip> <md5>")
+    print("\t<hostname/ip> is the resolvable address of the F5 device")
+    print("\t<credentials> are the username and password formatted as username:password")
+    print("\t<zip> is the name, and path if not in the same directory, to the geolocation zip package")
+    print("\t<md5> is the name, and path if not in the same directory, to the geolocation zip md5 file")
+    print("\nNOTE:  You can omit the password and instead put it in an env variable named BIGIP_PASS")
+
+###############################################################################
 # main() entry point if run from cmdline as script
 ###############################################################################
 if __name__ == "__main__":
-    import urllib3
-
     # Disable/supress warnings about unverified SSL:
+    import urllib3
     requests.packages.urllib3.disable_warnings()
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    bigip_ip='10.1.1.151'
-    bigip='https://{0}'.format(bigip_ip)
-    md5File = 'ip-geolocation-v2-2.0.0-20220228.573.0.zip.md5'
-    zipFile = 'ip-geolocation-v2-2.0.0-20220228.573.0.zip'
+    try:
+        path, hostname, creds, zip, md5 = sys.argv
+
+        # Handle username/password from creds or environment variable
+        if ('BIGIP_PASS' in os.environ ) and (os.environ['BIGIP_PASS'] is not None) and (not ":" in creds):
+            username = creds
+            password = os.environ['BIGIP_PASS']
+        else:
+            creds = creds.split(':',1)
+            username = creds[0]
+            password = creds[1]
+
+        # Modify the ip/hostname into a url
+        bigip='https://{0}'.format(hostname)
+
+        zipFile = validateFile(path, zip)
+        md5File = validateFile(path, md5)
+
+    except ValueError:
+        print("Wrong number of arguments.")
+        sys.exit(-1)
+
+    except FileNotFoundError as e:
+        print("{0}.  Exiting..".format(e))
+        sys.exit(-1)
+
 
     # Get the access token
     print("Getting access token")
-    if( token := getAuthToken(bigip, 'admin', 'admin') ) is None:
+    if( token := getAuthToken(bigip, username, password) ) is None:
         print("Problem getting access token, exiting")
         sys.exit(-1)
 
