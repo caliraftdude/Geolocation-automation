@@ -86,7 +86,7 @@ Here's why:
 
 ### Built With
 
-Code will be in python, perhaps other languages in the future.
+Code will be in python3, perhaps other languages in the future.
 
 * [Python](https://www.python.org/)
 
@@ -104,7 +104,7 @@ This is very simple example code, not a lot to be prepared for.
 To use this example, you will need:
 * Licensed big-ip system (14.1 or greater, but some earlier versions may work)
 * Admin access to the big-ip system.  This will use REST interfaces and you will need to get authenticated
-* Host system with a python 3 enviroment
+* Host system with a python 3.8 enviroment requests & json libraries.  Note, you could use an earlier version of Python3 but you will need to remove the := operator
 
 ### Installation
 
@@ -116,6 +116,13 @@ No installation necessary
 
 <!-- USAGE EXAMPLES -->
 ## Usage
+Arguments:
+* hostname/ip
+* credentials in the form of username:password
+* location of geolocation zip file
+* location of geolocation md5 file
+Note:  You CAN omit the password and then place the password in the env variable BIGIP_PASS
+
 The script will:
 * Gets auth token
 * Verifies the token
@@ -129,7 +136,17 @@ The script will:
 * Cleans up the .zip and .md5 file
 * Deletes the backup directory
 
-
+Example:
+```
+geolocation-update.py 10.1.1.151 admin:admin ip-geolocation-v2-2.0.0-20220228.573.0.zip ip-geolocation-v2-2.0.0-20220228.573.0.zip.md5
+Getting access token
+Backing up existing db
+Uploading geolocation updates
+Installing geolocation updates
+Starting GeoIP Version: 20210412
+Ending GeoIP Version: 20220228
+GeoIP DB updated!
+```
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
