@@ -2,7 +2,7 @@
 ###############################################################################
 # geolocation-update.py
 # Script that handles upgrading Geolocation db updates on F5 equipment.
-# Referece:
+# Reference:
 #   https://support.f5.com/csp/article/K11176
 #   https://code.visualstudio.com/docs/python/python-tutorial
 #   https://github.com/mhermsdorferf5/bigip-geodb-update
