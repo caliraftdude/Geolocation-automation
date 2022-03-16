@@ -158,8 +158,9 @@ Reference:
 * https://code.visualstudio.com/docs/python/python-tutorial
 * https://github.com/mhermsdorferf5/bigip-geodb-update
 
-Mark Hermsdorfer for his help and suggestions and how he approached this effort.
-Mark Menger for his continued council, guidance, and expertise
+Acknowledgements
+* Mark Hermsdorfer for his help and suggestions and how he approached this effort.
+* Mark Menger for his continued council, guidance, and expertise
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
