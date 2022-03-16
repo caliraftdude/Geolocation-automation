@@ -56,10 +56,7 @@
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
     <li><a href="#acknowledgments">Acknowledgments</a></li>
   </ol>
 </details>
@@ -152,11 +149,17 @@ GeoIP DB updated!
 
 <!-- LICENSE -->
 ## License
-
 Distributed AS-IS with no guarantee implied or otherwise
-
 <p align="right">(<a href="#top">back to top</a>)</p>
 
+## Acknowledgments
+Reference:
+* https://support.f5.com/csp/article/K11176
+* https://code.visualstudio.com/docs/python/python-tutorial
+* https://github.com/mhermsdorferf5/bigip-geodb-update
+
+Mark Hermsdorfer for his help and suggestions and how he approached this effort.
+Mark Menger for his continued council, guidance, and expertise
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
