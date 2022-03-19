@@ -11,14 +11,13 @@
 # 
 # Requires python 3.8 and >.  Otherwise omit the walrus operator ( := )
 ###############################################################################
+from enum import Enum
+from datetime import datetime
 import os
 import sys
 import json
-from xml.dom import ValidationErr
-import requests
-from enum import Enum
-from datetime import datetime
 import shutil
+import requests
 
 # Library of REST API end points for frequently used automation calls
 library = {'auth-token':'/mgmt/shared/authn/login',
@@ -40,35 +39,57 @@ library = {'auth-token':'/mgmt/shared/authn/login',
 
 # Define some exception classes to handle failure cases and consolidate some of the errors
 class ValidationError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
+    """
+    ValidationError for some of the necesary items in send_request
+    """
 
 class InvalidURL(Exception):
+    """
+    For raising exception if invalid on null urls are passed to send_request
+    """
     def __init__(self, message, errors):
         super().__init__(message)
         self.errors = errors
 
-# Simple enumeration to clean up sendRequest method choices
 class Method(Enum):
+    """
+    Class Method(Enum) provides simple enumeration for controlling way
+    send_request communicates to target
+    """
     GET = 1
     POST = 2
     PATCH = 3
     DELETE = 4
 
-###############################################################################
-# sendRequest()
-#   url         The url endpoint to send the request to
-#   method      One of the valid Method enumerations
-#   session     Active session object
-#   data        Data that is put into the body, normally for POST requests
-#
-#   Raises:
-#       notImplemented      For improper methods
-#       ValidationError     If the session object is None or inactive
-#                           The url parameter is missing
-###############################################################################
-def sendRequest(url, method=Method.GET, session=None, data=None):
-    
+
+def send_request(url, method=Method.GET, session=None, data=None):
+    """
+    Fixes the md5 file so that it will check the zip at the correct path
+    If you run md5sum in a different directory, then the md5 file needs to
+    specify the directory or it will be unable to find it.  This adds the
+    full path in front.
+    Note:  md5sum is insanely specific:
+        <md5sum_checksum><space><space><file_name>
+
+    Parameters
+    ----------
+    url : str                                 The url endpoint to send the request to
+    method : Method, defaults to Method.GET   One of the valid Method enumerations
+    session : obj, defaults to None           Active / valid session object
+    data : str, defaults to None              JSON formatted string passed as body in request
+
+    Returns
+    -------
+    response str on success
+    None on failure
+
+    Raises
+    ------
+    notImplemented      For improper methods
+    ValidationError     If the session object is None or inactive
+                        The url parameter is missing
+    """
+
     if not url:
         raise InvalidURL("The url is invalid", url)
 
@@ -76,7 +97,7 @@ def sendRequest(url, method=Method.GET, session=None, data=None):
         error_message = None
         response = None
 
-        if None == session:
+        if None is session:
             raise ValidationError("Invalid session provided")
 
         # Send request and then raise exceptions for 4xx and 5xx issues
@@ -89,11 +110,11 @@ def sendRequest(url, method=Method.GET, session=None, data=None):
         elif method is Method.DELETE:
             raise NotImplementedError("The DELETE method is not implemented yet")
         else:
-            raise NotImplementedError("The HTTP method {0} is not supported".format(method))
+            raise NotImplementedError(f"The HTTP method {method} is not supported")
 
         response.raise_for_status()
 
-    except requests.exceptions.HTTPError as e_http:
+    except requests.exceptions.HTTPError:
         # Handle 4xx and 5xx errors here.  Common 4xx and 5xx REST errors here
         if response.status_code == 400:
             error_message = "400 Bad request.  The url is wrong or malformed\n"
@@ -108,25 +129,23 @@ def sendRequest(url, method=Method.GET, session=None, data=None):
         elif response.status_code == 500:
             error_message = "500 Internal Server Error.  The server threw an error while processing the request\n"
         else:
-            error_message = "{0}.  Uncommon REST/HTTP error\n".format(response.status_code)
-        
-        status_code = response.status_code
+            error_message = f"{response.status_code}.  Uncommon REST/HTTP error\n"
 
     except requests.exceptions.TooManyRedirects as e_redir:
         # Handle excessive 3xx errors here
-        error_message = '{0}:  {1}'.format('TooManyRedirects', e_redir)
+        error_message = f"{'TooManyRedirects'}:  {e_redir}"
 
     except requests.exceptions.ConnectionError as e_conn:
         # Handle connection errors here
-        error_message = '{0}:  {1}'.format('ConnectionError', e_conn)
+        error_message = f"{'ConnectionError'}:  {e_conn}"
 
     except requests.exceptions.Timeout as e_tout:
         # Handle timeout errors here
-        error_message = '{0}:  {1}'.format('Timeout', e_tout)    
+        error_message = f"{'Timeout'}:  {e_tout}"
 
     except requests.exceptions.RequestException as e_general:
         # Handle ambiguous exceptions while handling request
-        error_message = '{0}:  {1}'.format('RequestException', e_general)
+        error_message = f"{'RequestException'}:  {e_general}"
 
     else:
         #return response.json()  THIS IS GOING TO BREAK STUFF XXX
@@ -135,12 +154,12 @@ def sendRequest(url, method=Method.GET, session=None, data=None):
     finally:
         # if error message isn't None, there is an error to process and we should return None
         if error_message:
-            print("sendRequest() Error:\n{0}".format(error_message))
-            print("url:\t{0}\nmethod:\t{1}\ndata:\t{2}".format(url, method.value, data))
-            
+            print(f"send_request() Error:\n{error_message}")
+            print(f"url:\t{url}\nmethod:\t{method.value}\ndata:\t{data}")
+
             if response is not None:
-                print("response: {0}".format(response.json()))
-        
+                print(f"response: {response.json()}")
+
             return None
 
 
@@ -168,30 +187,37 @@ def fix_md5_file(filename, append_path, savebu=False):
     """
     with open(filename, 'r+') as fo:
         if savebu:
-            bufilename = ("{0}-{1}.backup".format(filename, datetime.now().strftime('%Y%m%d-%H%M%S')) )
+            bufilename = (f"{filename}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.backup" )
             shutil.copy(filename, bufilename)
 
         old = fo.read().split()
         fo.seek(0)
-        fpfn = "{0}  {1}/{2}".format(old[0],append_path,old[1])
+        fpfn = f"{old[0]}  {append_path}/{old[1]}"
         fo.write(fpfn)
         fo.truncate()
         return fpfn
 
-###############################################################################
-# getAuthToken()
-#   uri             Base URL to call api and get token
-#   username        username for account
-#   password        password for account
-#
-# returns:
-#   access token on success
-#   None on failure
-###############################################################################
-def getAuthToken(uri=None, username='admin', password='admin'):
-    assert(uri!=None)
+def get_auth_token(uri=None, username='admin', password='admin'):
+    """
+    takes credentials and attmepts to obtain an access token from the taeget
+    system.
 
-    url = "{0}{1}".format(uri, (library['auth-token']))
+    Parameters
+    ----------
+    uri : str       Base URL to call api
+    username : str, defaults to 'admin', username for account on target system
+    password : str, defaults to 'admin', password for account on target system
+
+    token : str     Valid access token for this API endpoint
+
+    Returns
+    -------
+    True    on success
+    False   on failure
+    """
+    assert uri is not None
+
+    url = f"{uri}{library['auth-token']}"
     data = {'username':username, 'password':password, 'loginProviderName':'tmos'}
 
     with requests.Session() as session:
@@ -199,48 +225,54 @@ def getAuthToken(uri=None, username='admin', password='admin'):
         session.verify = False
 
         # Get authentication token
-        if (response:= sendRequest(url, method=Method.POST, session=session, data=json.dumps(data)) ) is None:
+        if (response:= send_request(url, method=Method.POST, session=session, data=json.dumps(data)) ) is None:
             print("Error attempting to get access token.")
             return None
-        
+
         # Save token and double check its good
         token = response.json()['token']['token']
-        url = "{0}{1}/{2}".format(bigip, (library['mng-tokens']), token )
+        url = f"{bigip}{library['mng-tokens']}/{token}"
         session.headers.update({'X-F5-Auth-Token' : token})
 
-        if (response := sendRequest(url, Method.GET, session) ) is None:
-            print("Error attempting to validate access token {1}.".format(token))
+        if (response := send_request(url, Method.GET, session) ) is None:
+            print(f"Error attempting to validate access token {token}.")
             return None
 
         return token
 
-###############################################################################
-# backupGeoDB()
-#   uri             Base URL to call api and get token
-#   accessToken     Valid accessToken
-# 
-# returns
-#   True on success
-#   False on failure
-###############################################################################
-def backupGeoDB(uri, accessToken=None):
-    assert(uri!=None)
-    assert(accessToken!=None)
+
+def backup_geo_db(uri, token=None):
+    """
+    Creates a backup directory on target device and then backs the existing
+    geolocation db up to that location.
+
+    Parameters
+    ----------
+    uri : str       Base URL to call api
+    token : str     Valid access token for this API endpoint
+
+    Returns
+    -------
+    True    on success
+    False   on failure
+    """
+    assert uri is not None
+    assert token is not None
 
     with requests.Session() as session:
         session.headers.update({'Content-Type': 'application/json'})
-        session.headers.update({'X-F5-Auth-Token' : accessToken})
+        session.headers.update({'X-F5-Auth-Token' : token})
         session.verify = False
 
         # Create the backup directory
-        url = '{0}{1}'.format(uri, library['bash'])
+        url = f"{uri}{library['bash']}"
         data = b'{"command": "run", "utilCmdArgs": "-c \'mkdir /shared/GeoIP_backup\'"}'
 
-        if (response:=sendRequest(url, Method.POST, session, data)) is not None:
+        if (response:=send_request(url, Method.POST, session, data)) is not None:
             # If the backup directory was created, copy the existing db into the backup directory
             data = b'{"command": "run", "utilCmdArgs": "-c \'cp -R /shared/GeoIP/* /shared/GeoIP_backup/\'"}'
 
-            if (response:=sendRequest(url, Method.POST, session, data) ) is None:
+            if (response:=send_request(url, Method.POST, session, data) ) is None:
                 print("Unable to backup existing geolocation database")
                 return False
 
@@ -250,32 +282,33 @@ def backupGeoDB(uri, accessToken=None):
 
     return True
 
-###############################################################################
-# getGeoIPVersion()
-# Makes a call to run 'geoip_lookup 104.219.101.154' on the F5 to extract the db
-# date/version
-#
-# Arguments
-#   uri             Base URL to call api and get token
-#   accessToken     Valid accessToken
-# returns
-#   date/version string on success
-#   None on failure
-###############################################################################
-def getGeoIPVersion(uri, token=None):
-    assert(uri!=None)
-    assert(token!=None)
+def get_geoip_version(uri, token=None):
+    """
+    Makes a call to run 'geoip_lookup 104.219.101.154' on the F5 to extract 
+    the db date/version
+
+    Parameters
+    ----------
+    uri : str       Base URL to call api
+    token : str     Valid access token for this API endpoint
+
+    Returns
+    -------
+    str     date/version string on success
+    None    on failure
+    """
+    assert uri is not None
+    assert token is not None
 
     with requests.Session() as session:
         session.headers.update({'Content-Type': 'application/json'})
         session.headers.update({'X-F5-Auth-Token' : token})
         session.verify = False
 
-        url = '{0}{1}'.format(uri, library['bash'])
+        url = f"{uri}{library['bash']}"
         data = b'{"command": "run", "utilCmdArgs": "-c \'geoip_lookup 104.219.101.154\'"}'
 
-        if( response:=sendRequest(url, Method.POST, session, data)) is not None:
-            version = None
+        if( response:=send_request(url, Method.POST, session, data)) is not None:
 
             # Convert the response to json, find the commandResult string and splitlines it into a list
             for line in response.json()['commandResult'].splitlines():
@@ -287,27 +320,28 @@ def getGeoIPVersion(uri, token=None):
             # something failed, so return None
             return None
 
-###############################################################################
-# uploadGeoLocationUpdate()
-# Uploads an md5 and zip file for geolocation db update
-#
-# Arguments
-#   uri         Base URL to call api   
-#   token       Valid access token for this API endpoint
-#   zipFile     full path to a geolocation zip file
-#   md5File     full path to a respective md5 for geolocation zip file
-#
-# returns
-#   True on success
-#   False on failure
-###############################################################################
-def uploadGeoLocationUpdate(uri, token, zipFile, md5File):
-    assert(uri!=None)
-    assert(token!=None)
-    assert(zipFile!=None)
-    assert(os.path.splitext(zipFile)[-1] == '.zip')
-    assert(md5File!=None)
-    assert(os.path.splitext(md5File)[-1] == '.md5')
+def upload_geolocation_update(uri, token, zip_file, md5_file):
+    """
+    Uploads an md5 and zip file for geolocation db update of a BIG-IP
+
+    Parameters
+    ----------
+    uri : str       Base URL to call api
+    token : str     Valid access token for this API endpoint
+    zip_file : str  full path to a geolocation zip file
+    md5_file : str  full path to a respective md5 file for the zip_file
+
+    Returns
+    -------
+    True on success
+    False on failure
+    """
+    assert uri is not None
+    assert token is not None
+    assert zip_file is not None
+    assert os.path.splitext(zip_file)[-1] == '.zip'
+    assert md5_file is not None
+    assert os.path.splitext(md5_file)[-1] == '.md5'
 
     with requests.Session() as session:
         session.headers.update({'Content-Type':'application/octet-stream'})
@@ -315,24 +349,24 @@ def uploadGeoLocationUpdate(uri, token, zipFile, md5File):
         session.verify = False
 
         # Upload md5 file, its small so a simple upload is all thats necesary
-        fix_md5_file(md5File, '/var/config/rest/downloads', savebu=True)
-        url = '{0}{1}{2}'.format(bigip, library['file-xfr'], md5File)
-        size = os.stat(md5File).st_size
-        content_range = "0-{0}/{1}".format( (size-1), size)
+        fix_md5_file(md5_file, '/var/config/rest/downloads', savebu=True)
+        url = f"{bigip}{library['file-xfr']}{md5_file}"
+        size = os.stat(md5_file).st_size
+        content_range = f"0-{size-1}/{size}"
         session.headers.update({'Content-Range':content_range})
 
-        with open(md5File, 'rb') as f:
-            if(response:=sendRequest(url, Method.POST, session, data=f)) is None:
+        with open(md5_file, 'rb') as f:
+            if(response:=send_request(url, Method.POST, session, data=f)) is None:
                 # Fail hard on md5 upload failure?
                 return False
 
         # upload zip file, this time it must be chunked
-        url = '{0}{1}{2}'.format(bigip, library['file-xfr'], zipFile)
-        size = os.stat(zipFile).st_size
+        url = f"{bigip}{library['file-xfr']}{zip_file}"
+        size = os.stat(zip_file).st_size
         chunk_size = 512 * 1024
         start = 0
 
-        with open(zipFile, 'rb') as f:
+        with open(zip_file, 'rb') as f:
             # Read a 'slice' of the file, chunk_size in bytes
             while( fslice := f.read(chunk_size) ):
 
@@ -342,73 +376,75 @@ def uploadGeoLocationUpdate(uri, token, zipFile, md5File):
                     end = size
                 else:
                     end = start+slice_size
-                
-                session.headers.update({'Content-Range':"{0}-{1}/{2}".format(start, end-1, size)} )
+
+                session.headers.update({'Content-Range':f"{start}-{end-1}/{size}"} )
 
                 # Send the slice, if we get a failure, dump out and return false
-                if(response:=sendRequest(url, Method.POST, session, data=fslice)) is None:
+                if(response:=send_request(url, Method.POST, session, data=fslice)) is None:
                     return False
 
                 start += slice_size
 
     # Verify the upload was successful by checking the md5sum.       
     with requests.Session() as session:
-        url = '{0}{1}'.format(uri, library['bash'])
+        url = f"{uri}{library['bash']}"
         session.headers.update({'Content-Type': 'application/json'})
         session.headers.update({'X-F5-Auth-Token' : token})
         session.verify = False
 
         # Verify that the file upload is sane and passes an md5 check
         data = {'command':'run'}
-        data['utilCmdArgs'] = "-c 'md5sum -c {0}/{1}'".format('/var/config/rest/downloads', md5File)
+        data['utilCmdArgs'] = f"-c 'md5sum -c {'/var/config/rest/downloads'}/{md5_file}'"
 
-        if (response:=sendRequest(url, Method.POST, session, json.dumps(data))) is not None:
+        if (response:=send_request(url, Method.POST, session, json.dumps(data))) is not None:
             retval = response.json()['commandResult'].split()
             if retval[1] != 'OK':
-               print("MD5 Failed check.  Uploaded zip integrity is questionable")
-               return False
+                print("MD5 Failed check.  Uploaded zip integrity is questionable")
+                return False
 
         return True
 
-###############################################################################
-# installGeolocationUpdate()
-# Makes a temp directory, copies zip, unzips archive and installs each of the
-# geolocation RPMs
-#
-# Arguments
-#   uri         Base URL to call api   
-#   token       Valid access token for this API endpoint
-#
-# returns
-#   True on success
-#   False on failure
-###############################################################################
-def installGeolocationUpdate(uri, token, zipFile):
-    assert(uri!=None)
-    assert(token!=None)
-    
-    tmpFolder = '/shared/tmp/geoupdate'
+
+def install_geolocation_update(uri, token, zip_file):
+    """
+    Makes a temp directory, copies zip, unzips archive and installs each of the
+    geolocation RPMs
+
+    Parameters
+    ----------
+    uri : str       Base URL to call api
+    token : str     Valid access token for this API endpoint
+
+    Returns
+    -------
+    True on success
+    False on failure
+    """
+    assert uri is not None
+    assert token is not None
+
+    tmp_folder = '/shared/tmp/geoupdate'
     rpmlist = []
 
     with requests.Session() as session:
-        url = '{0}{1}'.format(uri, library['bash'])
+        url = f"{uri}{library['bash']}"
         session.headers.update({'Content-Type': 'application/json'})
         session.headers.update({'X-F5-Auth-Token' : token})
         session.verify = False
 
         # Create a new directory in /shared/tmp/geoupdate
         data = {'command':'run'}
-        data['utilCmdArgs'] = "-c 'mkdir {0}'".format(tmpFolder)
-        if (response:=sendRequest(url, Method.POST, session, json.dumps(data))) is None:
+        data['utilCmdArgs'] = f"-c 'mkdir {tmp_folder}'"
+        if (response:=send_request(url, Method.POST, session, json.dumps(data))) is None:
             print("Unable to create tmp folder for installation")
             return False
 
         # unzip the archive into the /shared/tmp/geoupdate directory
-        data['utilCmdArgs'] = "-c 'unzip -u /var/config/rest/downloads/{0} -d {1} -x README.txt'".format(zipFile, tmpFolder)
-        if (response:=sendRequest(url, Method.POST, session, json.dumps(data))) is None:
+        data['utilCmdArgs'] = f"-c 'unzip -u /var/config/rest/downloads/{zip_file} -d {tmp_folder} -x README.txt'"
+        if (response:=send_request(url, Method.POST, session, json.dumps(data))) is None:
             print("Error while trying to unzip archive")
             return False
-        
+
         # Process the response and extract the names of the rpms
         for line in response.json()['commandResult'].splitlines():
             name = line.split()[1]
@@ -418,28 +454,27 @@ def installGeolocationUpdate(uri, token, zipFile):
 
         # For each rpm, run the update/installer
         for rpm in rpmlist:
-            data['utilCmdArgs'] = "-c 'geoip_update_data -f {0}'".format(rpm)
-            if (response:=sendRequest(url, Method.POST, session, json.dumps(data))) is None:
-                print("Error while trying to install rpm update {0}".format(rpm))
+            data['utilCmdArgs'] = f"-c 'geoip_update_data -f {rpm}'"
+            if (response:=send_request(url, Method.POST, session, json.dumps(data))) is None:
+                print("Error while trying to install rpm update {rpm}")
                 return False
-            
+
         # cleanup tmp folder
-        data['utilCmdArgs'] = "-c 'rm -rf {0}'".format(tmpFolder)
-        if (response:=sendRequest(url, Method.POST, session, json.dumps(data))) is None:
-            print("Error while trying to delete temp folder {0}".format(tmpFolder))
+        data['utilCmdArgs'] = f"-c 'rm -rf {tmp_folder}'"
+        if (response:=send_request(url, Method.POST, session, json.dumps(data))) is None:
+            print("Error while trying to delete temp folder {tmp_folder}")
 
         # cleanup uploads
-        data['utilCmdArgs'] = "-c 'rm -f /var/config/rest/downloads/{0}*'".format(zipFile)
-        if (response:=sendRequest(url, Method.POST, session, json.dumps(data))) is None:
+        data['utilCmdArgs'] = f"-c 'rm -f /var/config/rest/downloads/{zip_file}*'"
+        if (response:=send_request(url, Method.POST, session, json.dumps(data))) is None:
             print("Error while trying to delete uploads in /var/config/rest/downloads")
 
         # cleanup backup folder
         data['utilCmdArgs'] = "-c 'rm -rf /shared/GeoIP_backup'"
-        if (response:=sendRequest(url, Method.POST, session, json.dumps(data))) is None:
+        if (response:=send_request(url, Method.POST, session, json.dumps(data))) is None:
             print("Error while trying to delete geolocation backup, /shared/GeoIP_backup")
 
     return True
-
 
 def compare_versions(start, end):
     """
@@ -455,7 +490,6 @@ def compare_versions(start, end):
     0 on success
     1 on failure
     """
-
 
     print(f"Starting GeoIP Version: {start}\nEnding GeoIP Version: {end}")
 
@@ -542,8 +576,8 @@ if __name__ == "__main__":
         # Modify the ip/hostname into a url
         bigip = f"https://{hostname}"
 
-        zipFile = validate_file(path, zip)
-        md5File = validate_file(path, md5)
+        zip_file = validate_file(path, zip)
+        md5_file = validate_file(path, md5)
 
     except ValueError:
         print("Wrong number of arguments.")
@@ -558,29 +592,29 @@ if __name__ == "__main__":
 
     # Get the access token
     print("Getting access token")
-    if( token := getAuthToken(bigip, username, password) ) is None:
+    if( token := get_auth_token(bigip, username, password) ) is None:
         print("Problem getting access token, exiting")
         sys.exit(-1)
 
     # Attempt to backup existing db
     print("Backing up existing db")
-    backupGeoDB(bigip, token)
+    backup_geo_db(bigip, token)
 
     # Get starting date/version of geolocation db for comparison
-    startVersion = getGeoIPVersion(bigip, token)
+    startVersion = get_geoip_version(bigip, token)
 
     # Upload geolocation update zip file
     print("Uploading geolocation updates")
-    if False is uploadGeoLocationUpdate(bigip, token, zipFile, md5File):
+    if False is upload_geolocation_update(bigip, token, zip_file, md5_file):
         print("Unable to upload zip and/or md5 file.  Exiting.")
         sys.exit(-1)
 
     # Install geolocation update
     print("Installing geolocation updates")
-    if False is installGeolocationUpdate(bigip, token, zipFile):
+    if False is install_geolocation_update(bigip, token, zip_file):
         print("Unable to install the geolocation updates.  Exiting.")
         sys.exit(-1)
 
     # Get end date/version of geolocation db for comparison
-    endVersion = getGeoIPVersion(bigip, token)
+    endVersion = get_geoip_version(bigip, token)
     sys.exit( compare_versions(startVersion, endVersion) )
