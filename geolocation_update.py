@@ -235,7 +235,7 @@ def get_auth_token(uri=None, username='admin', password='admin'):
 
         # Save token and double check its good
         token = response.json()['token']['token']
-        url = f"{bigip}{library['mng-tokens']}/{token}"
+        url = f"{uri}{library['mng-tokens']}/{token}"
         session.headers.update({'X-F5-Auth-Token' : token})
 
         if (response := send_request(url, Method.GET, session) ) is None:
@@ -354,7 +354,7 @@ def upload_geolocation_update(uri, token, zip_file, md5_file):
 
         # Upload md5 file, its small so a simple upload is all thats necesary
         fix_md5_file(md5_file, '/var/config/rest/downloads', savebu=True)
-        url = f"{bigip}{library['file-xfr']}{md5_file}"
+        url = f"{uri}{library['file-xfr']}{md5_file}"
         size = os.stat(md5_file).st_size
         content_range = f"0-{size-1}/{size}"
         session.headers.update({'Content-Range':content_range})
@@ -365,7 +365,7 @@ def upload_geolocation_update(uri, token, zip_file, md5_file):
                 return False
 
         # upload zip file, this time it must be chunked
-        url = f"{bigip}{library['file-xfr']}{zip_file}"
+        url = f"{uri}{library['file-xfr']}{zip_file}"
         size = os.stat(zip_file).st_size
         chunk_size = 512 * 1024
         start = 0
@@ -566,22 +566,26 @@ if __name__ == "__main__":
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     try:
-        path, hostname, creds, zipf, md5f = sys.argv
+        g_path = sys.argv[0]
+        g_hostname = sys.argv[1]
+        g_creds = sys.argv[2]
+        g_zip = sys.argv[3]
+        g_md5 = sys.argv[4]
 
         # Handle username/password from creds or environment variable
-        if ('BIGIP_PASS' in os.environ ) and (os.environ['BIGIP_PASS'] is not None) and (not ":" in creds):
-            username = creds
-            password = os.environ['BIGIP_PASS']
+        if ('BIGIP_PASS' in os.environ ) and (os.environ['BIGIP_PASS'] is not None) and (not ":" in g_creds):
+            g_username = g_creds
+            g_password = os.environ['BIGIP_PASS']
         else:
-            creds = creds.split(':',1)
-            username = creds[0]
-            password = creds[1]
+            creds = g_creds.split(':',1)
+            g_username = creds[0]
+            g_password = creds[1]
 
         # Modify the ip/hostname into a url
-        bigip = f"https://{hostname}"
+        g_bigip = f"https://{g_hostname}"
 
-        zip_file = validate_file(path, zipf)
-        md5_file = validate_file(path, md5f)
+        g_zip_file = validate_file(g_path, g_zip)
+        g_md5_file = validate_file(g_path, g_md5)
 
     except ValueError:
         print("Wrong number of arguments.")
@@ -596,29 +600,29 @@ if __name__ == "__main__":
 
     # Get the access token
     print("Getting access token")
-    if( token := get_auth_token(bigip, username, password) ) is None:
+    if( g_token := get_auth_token(g_bigip, g_username, g_password) ) is None:
         print("Problem getting access token, exiting")
         sys.exit(-1)
 
     # Attempt to backup existing db
     print("Backing up existing db")
-    backup_geo_db(bigip, token)
+    backup_geo_db(g_bigip, g_token)
 
     # Get starting date/version of geolocation db for comparison
-    startVersion = get_geoip_version(bigip, token)
+    startVersion = get_geoip_version(g_bigip, g_token)
 
     # Upload geolocation update zip file
     print("Uploading geolocation updates")
-    if False is upload_geolocation_update(bigip, token, zip_file, md5_file):
+    if False is upload_geolocation_update(g_bigip, g_token, g_zip_file, g_md5_file):
         print("Unable to upload zip and/or md5 file.  Exiting.")
         sys.exit(-1)
 
     # Install geolocation update
     print("Installing geolocation updates")
-    if False is install_geolocation_update(bigip, token, zip_file):
+    if False is install_geolocation_update(g_bigip, g_token, g_zip_file):
         print("Unable to install the geolocation updates.  Exiting.")
         sys.exit(-1)
 
     # Get end date/version of geolocation db for comparison
-    endVersion = get_geoip_version(bigip, token)
+    endVersion = get_geoip_version(g_bigip, g_token)
     sys.exit( compare_versions(startVersion, endVersion) )
