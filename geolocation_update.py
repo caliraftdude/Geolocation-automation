@@ -13,6 +13,8 @@
 # Requires python 3.8 and >.  Otherwise omit the walrus operator ( := )
 ###############################################################################
 """
+# Disable annoying line too long (we all have widescreens now...)
+# pylint: disable=C0301
 from enum import Enum
 from datetime import datetime
 import os
@@ -187,16 +189,16 @@ def fix_md5_file(filename, append_path, savebu=False):
     -------
         Fixed str saved within the md5 file
     """
-    with open(filename, 'r+') as fo:
+    with open(filename, 'r+', encoding='UTF-8') as fileobj:
         if savebu:
             bufilename = (f"{filename}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.backup" )
             shutil.copy(filename, bufilename)
 
-        old = fo.read().split()
-        fo.seek(0)
+        old = fileobj.read().split()
+        fileobj.seek(0)
         fpfn = f"{old[0]}  {append_path}/{old[1]}"
-        fo.write(fpfn)
-        fo.truncate()
+        fileobj.write(fpfn)
+        fileobj.truncate()
         return fpfn
 
 def get_auth_token(uri=None, username='admin', password='admin'):
@@ -286,7 +288,7 @@ def backup_geo_db(uri, token=None):
 
 def get_geoip_version(uri, token=None):
     """
-    Makes a call to run 'geoip_lookup 104.219.101.154' on the F5 to extract 
+    Makes a call to run 'geoip_lookup 104.219.101.154' on the F5 to extract
     the db date/version
 
     Parameters
@@ -357,8 +359,8 @@ def upload_geolocation_update(uri, token, zip_file, md5_file):
         content_range = f"0-{size-1}/{size}"
         session.headers.update({'Content-Range':content_range})
 
-        with open(md5_file, 'rb') as f:
-            if(response:=send_request(url, Method.POST, session, data=f)) is None:
+        with open(md5_file, 'rb') as fileobj:
+            if(response:=send_request(url, Method.POST, session, data=fileobj)) is None:
                 # Fail hard on md5 upload failure?
                 return False
 
@@ -368,9 +370,9 @@ def upload_geolocation_update(uri, token, zip_file, md5_file):
         chunk_size = 512 * 1024
         start = 0
 
-        with open(zip_file, 'rb') as f:
+        with open(zip_file, 'rb') as fileobj:
             # Read a 'slice' of the file, chunk_size in bytes
-            while( fslice := f.read(chunk_size) ):
+            while( fslice := fileobj.read(chunk_size) ):
 
                 # Compute the size, start, end and modify the content-range header
                 slice_size = len(fslice)
@@ -387,7 +389,7 @@ def upload_geolocation_update(uri, token, zip_file, md5_file):
 
                 start += slice_size
 
-    # Verify the upload was successful by checking the md5sum.       
+    # Verify the upload was successful by checking the md5sum.
     with requests.Session() as session:
         url = f"{uri}{library['bash']}"
         session.headers.update({'Content-Type': 'application/json'})
@@ -564,7 +566,7 @@ if __name__ == "__main__":
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     try:
-        path, hostname, creds, zip, md5 = sys.argv
+        path, hostname, creds, zipf, md5f = sys.argv
 
         # Handle username/password from creds or environment variable
         if ('BIGIP_PASS' in os.environ ) and (os.environ['BIGIP_PASS'] is not None) and (not ":" in creds):
@@ -578,8 +580,8 @@ if __name__ == "__main__":
         # Modify the ip/hostname into a url
         bigip = f"https://{hostname}"
 
-        zip_file = validate_file(path, zip)
-        md5_file = validate_file(path, md5)
+        zip_file = validate_file(path, zipf)
+        md5_file = validate_file(path, md5f)
 
     except ValueError:
         print("Wrong number of arguments.")
