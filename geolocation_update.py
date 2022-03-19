@@ -1,4 +1,5 @@
 #!/usr/bin/python
+"""
 ###############################################################################
 # geolocation-update.py
 # Script that handles upgrading Geolocation db updates on F5 equipment.
@@ -8,9 +9,10 @@
 #   https://github.com/mhermsdorferf5/bigip-geodb-update
 #
 # Located here: https://github.com/caliraftdude/Geolocation-automation
-# 
+#
 # Requires python 3.8 and >.  Otherwise omit the walrus operator ( := )
 ###############################################################################
+"""
 from enum import Enum
 from datetime import datetime
 import os
