@@ -14,6 +14,7 @@
 import os
 import sys
 import json
+from xml.dom import ValidationErr
 import requests
 from enum import Enum
 from datetime import datetime
@@ -47,10 +48,6 @@ class InvalidURL(Exception):
         super().__init__(message)
         self.errors = errors
 
-class notImplemented(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
 # Simple enumeration to clean up sendRequest method choices
 class Method(Enum):
     GET = 1
@@ -66,9 +63,9 @@ class Method(Enum):
 #   data        Data that is put into the body, normally for POST requests
 #
 #   Raises:
-#       InvalidURL          The url parameter is missing
 #       notImplemented      For improper methods
 #       ValidationError     If the session object is None or inactive
+#                           The url parameter is missing
 ###############################################################################
 def sendRequest(url, method=Method.GET, session=None, data=None):
     
@@ -88,11 +85,11 @@ def sendRequest(url, method=Method.GET, session=None, data=None):
         elif method is Method.POST:
             response = session.post(url, data)
         elif method is Method.PATCH:
-            raise notImplemented("The PATCH method is not implemented yet")
+            raise NotImplementedError("The PATCH method is not implemented yet")
         elif method is Method.DELETE:
-            raise notImplemented("The DELETE method is not implemented yet")
+            raise NotImplementedError("The DELETE method is not implemented yet")
         else:
-            raise notImplemented("The HTTP method {0} is not supported".format(method))
+            raise NotImplementedError("The HTTP method {0} is not supported".format(method))
 
         response.raise_for_status()
 
@@ -146,21 +143,29 @@ def sendRequest(url, method=Method.GET, session=None, data=None):
         
             return None
 
-###############################################################################
-# fixMD5File()
-#   filename        Valid filename with resolvable path from cwd
-#   append_path     path to append in the file
-#   savebu          If you a bu of the file should be made prior to modification
-#
-# Notes:
-#   If you run md5sum in a different directory, then the md5 file needs to
-#   specify the directory or it will be unable to find it.  This adds the
-#   full path in front.
-#   Note:  md5sum is insanely specific:  
-#       <md5sum_checksum><space><space><file_name>
-#
-###############################################################################
-def fixMD5File(filename, append_path, savebu=False):
+
+def fix_md5_file(filename, append_path, savebu=False):
+    """
+    Fixes the md5 file so that it will check the zip at the correct path
+    If you run md5sum in a different directory, then the md5 file needs to
+    specify the directory or it will be unable to find it.  This adds the
+    full path in front.
+    Note:  md5sum is insanely specific:
+        <md5sum_checksum><space><space><file_name>
+
+    Parameters
+    ----------
+    filename : str
+        Valid filename with resolvable path from cwd
+    append_path : str
+        path to append in the file
+    savebu : boolean, default False
+        If you a bu of the file should be made prior to modification
+
+    Returns
+    -------
+        Fixed str saved within the md5 file
+    """
     with open(filename, 'r+') as fo:
         if savebu:
             bufilename = ("{0}-{1}.backup".format(filename, datetime.now().strftime('%Y%m%d-%H%M%S')) )
@@ -178,7 +183,7 @@ def fixMD5File(filename, append_path, savebu=False):
 #   uri             Base URL to call api and get token
 #   username        username for account
 #   password        password for account
-# 
+#
 # returns:
 #   access token on success
 #   None on failure
@@ -310,7 +315,7 @@ def uploadGeoLocationUpdate(uri, token, zipFile, md5File):
         session.verify = False
 
         # Upload md5 file, its small so a simple upload is all thats necesary
-        fixMD5File(md5File, '/var/config/rest/downloads', savebu=True)
+        fix_md5_file(md5File, '/var/config/rest/downloads', savebu=True)
         url = '{0}{1}{2}'.format(bigip, library['file-xfr'], md5File)
         size = os.stat(md5File).st_size
         content_range = "0-{0}/{1}".format( (size-1), size)
@@ -435,20 +440,24 @@ def installGeolocationUpdate(uri, token, zipFile):
 
     return True
 
-###############################################################################
-# compareVersions()
-# Helper function to compare two geolocation db version and output message
-#
-# Arguments
-#   start     Beginning version string of geolocation db
-#   end       Ending version string of geolocation db
-#
-# returns
-#   0 on success
-#   1 on failure
-###############################################################################
-def compareVersions(start, end):
-    print("Starting GeoIP Version: {0}\nEnding GeoIP Version: {1}".format(start, end))
+
+def compare_versions(start, end):
+    """
+    Helper function to compare two geolocation db version and output message
+
+    Parameters
+    ----------
+    start : str    Beginning version string of geolocation db
+    end : str      Ending version string of geolocation db
+
+    Returns
+    -------
+    0 on success
+    1 on failure
+    """
+
+
+    print(f"Starting GeoIP Version: {start}\nEnding GeoIP Version: {end}")
 
     if int(start) < int(end):
         print("GeoIP DB updated!")
@@ -457,42 +466,51 @@ def compareVersions(start, end):
         print("ERROR GeoIP DB NOT updated!")
         return 1
 
-###############################################################################
-# validateFile()
-#
-# arguments:
-#   path    argument 1 from sys.argv
-#   file    file to check
-# returns:
-#   corrected file with full path
-# raises:
-#   FileNotFoundError if file doesn't exist
-###############################################################################
-def validateFile(path, file):
-    assert(path!= None)
-    assert(file!=None)
+
+def validate_file(path, file):
+    """
+    Verifies that the file exists and if in the same directory, keeps the basename.
+    If its in a relative or different directory, returns the full path resolving
+    links and so on.
+
+    Parameters
+    ----------
+    path : str
+        Argument 0 from sys.argv.. the passed current working directory and exe name
+    file : str
+        Name of the file to check
+
+    Returns
+    -------
+    Corrected file with full path
+
+    Raises
+    ------
+    FileNotFoundError if file doesn't exist
+    """
+    assert path is not None
+    assert file is not None
 
     cwd = os.path.dirname(os.path.realpath(path))
 
     # Verify the zip exists, if its in the same directory, clean up the path
-    if( not os.path.exists(file) ):
-        raise FileNotFoundError("Unable to find file {0}".format(file))
+    if not os.path.exists(file):
+        raise FileNotFoundError(f"Unable to find file {file}")
+
+    # If cwd and file is in same location, just use the basename for the file
+    if cwd == os.path.dirname(os.path.realpath(file)):
+        retval = os.path.basename(file)
+    # otherwise use the full path (and resolve links) to the file
     else:
-        # If cwd and file is in same location, just use the basename for the file
-        if (cwd == os.path.dirname(os.path.realpath(file)) ):
-            retval = os.path.basename(file)
-        # otherwise use the full path (and resolve links) to the file
-        else:
-            retval = os.path.realpath(file)
-        
+        retval = os.path.realpath(file)
+
     return retval
 
-###############################################################################
-# printUsage()
-#
-# simple routine to print the usage information
-###############################################################################
-def printUsage():
+
+def print_usage():
+    """
+    Prints out the correct way to call the script
+    """
     print("Usage: geolocation-update.py <hostname/ip> <credentials> <zip> <md5>")
     print("\t<hostname/ip> is the resolvable address of the F5 device")
     print("\t<credentials> are the username and password formatted as username:password")
@@ -522,17 +540,19 @@ if __name__ == "__main__":
             password = creds[1]
 
         # Modify the ip/hostname into a url
-        bigip='https://{0}'.format(hostname)
+        bigip = f"https://{hostname}"
 
-        zipFile = validateFile(path, zip)
-        md5File = validateFile(path, md5)
+        zipFile = validate_file(path, zip)
+        md5File = validate_file(path, md5)
 
     except ValueError:
         print("Wrong number of arguments.")
+        print_usage()
         sys.exit(-1)
 
     except FileNotFoundError as e:
-        print("{0}.  Exiting..".format(e))
+        print(f"{e}.  Exiting..")
+        print_usage()
         sys.exit(-1)
 
 
@@ -551,16 +571,16 @@ if __name__ == "__main__":
 
     # Upload geolocation update zip file
     print("Uploading geolocation updates")
-    if( False == uploadGeoLocationUpdate(bigip, token, zipFile, md5File) ):
+    if False is uploadGeoLocationUpdate(bigip, token, zipFile, md5File):
         print("Unable to upload zip and/or md5 file.  Exiting.")
         sys.exit(-1)
 
     # Install geolocation update
     print("Installing geolocation updates")
-    if( False == installGeolocationUpdate(bigip, token, zipFile) ):
+    if False is installGeolocationUpdate(bigip, token, zipFile):
         print("Unable to install the geolocation updates.  Exiting.")
         sys.exit(-1)
 
     # Get end date/version of geolocation db for comparison
     endVersion = getGeoIPVersion(bigip, token)
-    sys.exit( compareVersions(startVersion, endVersion) )
+    sys.exit( compare_versions(startVersion, endVersion) )
