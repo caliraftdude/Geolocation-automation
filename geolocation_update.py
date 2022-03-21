@@ -164,7 +164,8 @@ def send_request(url, method=Method.GET, session=None, data=None):
             if response is not None:
                 print(f"response: {response.json()}")
 
-            return None
+    # pylint W0150 - might swallow exception... drop this out of the finally block?
+    return None
 
 
 def fix_md5_file(filename, append_path, savebu=False):
@@ -272,11 +273,11 @@ def backup_geo_db(uri, token=None):
         url = f"{uri}{library['bash']}"
         data = b'{"command": "run", "utilCmdArgs": "-c \'mkdir /shared/GeoIP_backup\'"}'
 
-        if (response:=send_request(url, Method.POST, session, data)) is not None:
-            # If the backup directory was created, copy the existing db into the backup directory
+        # If the backup directory was created, copy the existing db into the backup directory
+        if (send_request(url, Method.POST, session, data)) is not None:
             data = b'{"command": "run", "utilCmdArgs": "-c \'cp -R /shared/GeoIP/* /shared/GeoIP_backup/\'"}'
 
-            if (response:=send_request(url, Method.POST, session, data) ) is None:
+            if (send_request(url, Method.POST, session, data) ) is None:
                 print("Unable to backup existing geolocation database")
                 return False
 
@@ -500,9 +501,9 @@ def compare_versions(start, end):
     if int(start) < int(end):
         print("GeoIP DB updated!")
         return 0
-    else:
-        print("ERROR GeoIP DB NOT updated!")
-        return 1
+
+    print("ERROR GeoIP DB NOT updated!")
+    return 1
 
 
 def validate_file(path, file):
@@ -529,6 +530,7 @@ def validate_file(path, file):
     assert path is not None
     assert file is not None
 
+    # unlikely to raise, but there could be an errno.xx for oddly linked CWDs
     cwd = os.path.dirname(os.path.realpath(path))
 
     # Verify the zip exists, if its in the same directory, clean up the path
@@ -566,11 +568,15 @@ if __name__ == "__main__":
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     try:
+        if len(sys.argv) < 5:
+            raise ValueError
+
+        # Extract cmd line arguments and massage them accordingly
         g_path = sys.argv[0]
-        g_hostname = sys.argv[1]
+        g_bigip = f"https://{sys.argv[1]}"
         g_creds = sys.argv[2]
-        g_zip = sys.argv[3]
-        g_md5 = sys.argv[4]
+        g_zip_file = validate_file(g_path, sys.argv[3])
+        g_md5_file = validate_file(g_path, sys.argv[4])
 
         # Handle username/password from creds or environment variable
         if ('BIGIP_PASS' in os.environ ) and (os.environ['BIGIP_PASS'] is not None) and (not ":" in g_creds):
@@ -581,12 +587,6 @@ if __name__ == "__main__":
             g_username = creds[0]
             g_password = creds[1]
 
-        # Modify the ip/hostname into a url
-        g_bigip = f"https://{g_hostname}"
-
-        g_zip_file = validate_file(g_path, g_zip)
-        g_md5_file = validate_file(g_path, g_md5)
-
     except ValueError:
         print("Wrong number of arguments.")
         print_usage()
@@ -596,7 +596,6 @@ if __name__ == "__main__":
         print(f"{e}.  Exiting..")
         print_usage()
         sys.exit(-1)
-
 
     # Get the access token
     print("Getting access token")
