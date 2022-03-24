@@ -41,6 +41,15 @@ library = {'auth-token':'/mgmt/shared/authn/login',
            'bash':'/mgmt/tm/util/bash',
 }
 
+# Dictionary to translate a status code to an error message
+status_code_to_msg = {400:"400 Bad request.  The url is wrong or malformed\n",
+                      401:"401 Unauthorized.  The client is not authorized for this action or auth token is expired\n",
+                      404:"404 Not Found.  The server was unable to find the requested resource\n",
+                      415:"415 Unsupported media type.  The request data format is not supported by the server\n",
+                      422:"422 Unprocessable Entity.  The request data was properly formatted but contained invalid or missing data\n",
+                      500:"500 Internal Server Error.  The server threw an error while processing the request\n",
+}
+
 # Define some exception classes to handle failure cases and consolidate some of the errors
 class ValidationError(Exception):
     """
@@ -120,20 +129,8 @@ def send_request(url, method=Method.GET, session=None, data=None):
 
     except requests.exceptions.HTTPError:
         # Handle 4xx and 5xx errors here.  Common 4xx and 5xx REST errors here
-        if response.status_code == 400:
-            error_message = "400 Bad request.  The url is wrong or malformed\n"
-        elif response.status_code == 401:
-            error_message = "401 Unauthorized.  The client is not authorized for this action or auth token is expired\n"
-        elif response.status_code == 404:
-            error_message = "404 Not Found.  The server was unable to find the requested resource\n"
-        elif response.status_code == 415:
-            error_message = "415 Unsupported media type.  The request data format is not supported by the server\n"
-        elif response.status_code == 422:
-            error_message = "422 Unprocessable Entity.  The request data was properly formatted but contained invalid or missing data\n"
-        elif response.status_code == 500:
-            error_message = "500 Internal Server Error.  The server threw an error while processing the request\n"
-        else:
-            error_message = f"{response.status_code}.  Uncommon REST/HTTP error\n"
+        if not (error_message := status_code_to_msg.get(response.status_code) ):
+            error_message = f"{response.status_code}.  Uncommon REST/HTTP error"
 
     except requests.exceptions.TooManyRedirects as e_redir:
         # Handle excessive 3xx errors here
@@ -164,9 +161,7 @@ def send_request(url, method=Method.GET, session=None, data=None):
             if response is not None:
                 print(f"response: {response.json()}")
 
-    # pylint W0150 - might swallow exception... drop this out of the finally block?
     return None
-
 
 def fix_md5_file(filename, append_path, savebu=False):
     """
@@ -309,6 +304,7 @@ def get_geoip_version(uri, token=None):
         session.headers.update({'Content-Type': 'application/json'})
         session.headers.update({'X-F5-Auth-Token' : token})
         session.verify = False
+        retval = None
 
         url = f"{uri}{library['bash']}"
         data = b'{"command": "run", "utilCmdArgs": "-c \'geoip_lookup 104.219.101.154\'"}'
@@ -319,11 +315,9 @@ def get_geoip_version(uri, token=None):
             for line in response.json()['commandResult'].splitlines():
                 # Walk the list until we find the Copyright and then return the last 8 characters
                 if "Copyright" in line:
-                    return line[-8:]
+                    retval = line[-8:]
 
-        else:
-            # something failed, so return None
-            return None
+        return retval
 
 def upload_geolocation_update(uri, token, zip_file, md5_file):
     """
