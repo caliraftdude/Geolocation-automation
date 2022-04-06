@@ -149,7 +149,6 @@ def send_request(url, method=Method.GET, session=None, data=None):
         error_message = f"{'RequestException'}:  {e_general}"
 
     else:
-        #return response.json()  THIS IS GOING TO BREAK STUFF XXX
         return response
 
     finally:
