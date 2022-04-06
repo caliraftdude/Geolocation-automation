@@ -53,7 +53,7 @@ status_code_to_msg = {400:"400 Bad request.  The url is wrong or malformed\n",
 # Define some exception classes to handle failure cases and consolidate some of the errors
 class ValidationError(Exception):
     """
-    ValidationError for some of the necesary items in send_request
+    ValidationError for some of the necessary items in send_request
     """
 
 class InvalidURL(Exception):
@@ -77,12 +77,12 @@ class Method(Enum):
 
 def send_request(url, method=Method.GET, session=None, data=None):
     """
-    Fixes the md5 file so that it will check the zip at the correct path
-    If you run md5sum in a different directory, then the md5 file needs to
-    specify the directory or it will be unable to find it.  This adds the
-    full path in front.
-    Note:  md5sum is insanely specific:
-        <md5sum_checksum><space><space><file_name>
+    send_request is used to send a REST call to the device.  By default it assumes
+    that this is a GET request (throught the default enumeration).  The passsed
+    session and data are also by default set to None.  In the case of data, this
+    is ignored as its only relevant for a POST or PATCH call.  However the session
+    is checked against the default and raises if its None.  PATCH and DELETE are
+    also not implemented yet and raise.
 
     Parameters
     ----------
