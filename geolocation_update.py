@@ -78,7 +78,7 @@ class Method(Enum):
 def send_request(url, method=Method.GET, session=None, data=None):
     """
     send_request is used to send a REST call to the device.  By default it assumes
-    that this is a GET request (throught the default enumeration).  The passsed
+    that this is a GET request (through the default enumeration).  The passsed
     session and data are also by default set to None.  In the case of data, this
     is ignored as its only relevant for a POST or PATCH call.  However the session
     is checked against the default and raises if its None.  PATCH and DELETE are
