@@ -198,7 +198,7 @@ def fix_md5_file(filename, append_path, savebu=False):
 
 def get_auth_token(uri=None, username='admin', password='admin'):
     """
-    takes credentials and attmepts to obtain an access token from the taeget
+    takes credentials and attempts to obtain an access token from the target
     system.
 
     Parameters
@@ -207,12 +207,10 @@ def get_auth_token(uri=None, username='admin', password='admin'):
     username : str, defaults to 'admin', username for account on target system
     password : str, defaults to 'admin', password for account on target system
 
-    token : str     Valid access token for this API endpoint
-
     Returns
     -------
-    True    on success
-    False   on failure
+    token : str     on success
+    None            on failure
     """
     assert uri is not None
 
@@ -346,7 +344,7 @@ def upload_geolocation_update(uri, token, zip_file, md5_file):
         session.headers.update({'X-F5-Auth-Token' : token})
         session.verify = False
 
-        # Upload md5 file, its small so a simple upload is all thats necesary
+        # Upload md5 file, its small so a simple upload is all thats necessary
         fix_md5_file(md5_file, '/var/config/rest/downloads', savebu=True)
         url = f"{uri}{library['file-xfr']}{md5_file}"
         size = os.stat(md5_file).st_size
@@ -412,7 +410,8 @@ def install_geolocation_update(uri, token, zip_file):
     ----------
     uri : str       Base URL to call api
     token : str     Valid access token for this API endpoint
-
+    zip_file: str   Name of zip file to install
+    
     Returns
     -------
     True on success
