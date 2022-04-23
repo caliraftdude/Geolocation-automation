@@ -106,10 +106,10 @@ def send_request(url, method=Method.GET, session=None, data=None):
     if not url:
         raise InvalidURL("The url is invalid", url)
 
-    try:
-        error_message = None
-        response = None
+    error_message = None
+    response = None
 
+    try:
         if None is session:
             raise ValidationError("Invalid session provided")
 
@@ -411,7 +411,7 @@ def install_geolocation_update(uri, token, zip_file):
     uri : str       Base URL to call api
     token : str     Valid access token for this API endpoint
     zip_file: str   Name of zip file to install
-    
+
     Returns
     -------
     True on success
