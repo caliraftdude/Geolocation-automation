@@ -558,6 +558,7 @@ if __name__ == "__main__":
     import urllib3
     requests.packages.urllib3.disable_warnings()
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    import time
 
     try:
         if len(sys.argv) < 5:
@@ -594,6 +595,10 @@ if __name__ == "__main__":
     if( g_token := get_auth_token(g_bigip, g_username, g_password) ) is None:
         print("Problem getting access token, exiting")
         sys.exit(-1)
+
+    # Because of bug-id: 1108181, subsequent attempts to use a newly acquired, or refreshed, token can fail.
+    # A cheap workaround, possibly, is to wait a few seconds
+    time.sleep(5)
 
     # Attempt to backup existing db
     print("Backing up existing db")
