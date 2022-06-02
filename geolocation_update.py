@@ -554,7 +554,7 @@ def print_usage():
 # main() entry point if run from cmdline as script
 ###############################################################################
 if __name__ == "__main__":
-    # Disable/supress warnings about unverified SSL:
+    # Disable/suppress warnings about unverified SSL:
     import urllib3
     requests.packages.urllib3.disable_warnings()
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
